@@ -3,6 +3,7 @@ import sqlalchemy as sqlalc
 import pandas as pd
 import tabula
 import requests
+import numpy as np
 class DataExtractor:
     '''
     Parameters:
@@ -41,5 +42,39 @@ class DataExtractor:
         
         return df_merged
     
-    def list_number_of_stores():
-        response = requests.get('https://aqj7u5id95.execute-api.eu-west-1.amazonaws.com/prod/store_details/{store_number}')
+    def list_number_of_stores(self, endpoint_url:str, header:dict):
+        response = requests.get(url = endpoint_url, headers = header).json()
+        return response['number_stores']
+    
+
+    def retrieve_stores_data(self, endpoint_url:str, header:dict):
+        total_stores = self.list_number_of_stores(endpoint_url = 'https://aqj7u5id95.execute-api.eu-west-1.amazonaws.com/prod/number_stores',
+                                                header = header)
+        df_final = pd.DataFrame()
+        for store_num in range(total_stores):
+            response = requests.get(url = endpoint_url + f'{store_num}', headers = header).json()
+            df_dict = pd.DataFrame({
+                'index': [response['index']],
+                'address': [response['address'] if response['address'] != 'N/A' else np.nan],
+                'longitude': [response['longitude'] if response['longitude'] != 'N/A' else np.nan],
+                'lat': [response['lat'] if response['lat'] != 'N/A' else np.nan],
+                'locality': [response['locality'] if response['locality'] != 'N/A' else np.nan],
+                'store_code': [response['store_code']],
+                'staff_numbers': [response['staff_numbers']],
+                'opening_date': [response['opening_date']],
+                'store_type': [response['store_type']],
+                'latitude': [response['latitude']],
+                'country_code': [response['country_code']],
+                'continent': [response['continent']]
+            })
+
+            df_final = pd.concat([df_final, df_dict])
+
+        print(df_final)
+
+        return df_final
+
+
+DataExtractor().retrieve_stores_data(endpoint_url = 'https://aqj7u5id95.execute-api.eu-west-1.amazonaws.com/prod/store_details/',
+                                     header = {'x-api-key' : 'yFBQbwXe9J3sd6zWVAMrK6lcxxr0q1lr2PT6DDMX'})
+
