@@ -8,11 +8,34 @@
 5. [License Information](#license-information)
 
 ## Description Of Project
+### Project Scneario
+You work for a multinational company that sells various goods across the globe.<br>
+Currently, their sales data is spread across many different data sources making it not easily accessible or analysable by current members of the team.<br>
+In an effort to become more data-driven, your organisation would like to make its sales data accessible from one centralised location.<br>
+Your first goal will be to produce a system that stores the current company data in a database so that it's accessed from one centralised location and acts as a single source of truth for sales data.<br>
+You will then query the database to get up-to-date metrics for the business.
+### Learened So Far
+Reinforced knowledge of 
+- regular expression
+- sqlalchemey
+- pandas
+- web apis 
 
-## Installtioan Instructions
+## Installation Instructions
 
 ## Usage Instructions
-
+Replace 'METHOD_NAME' with chosen method. For DataCleaning methods only no arguments are required for method calls.
+```
+python -c 'import data_cleaning; data_cleaning.METHOD_NAME()'
+```
 ## File Structure Of The Project
-
+    multinational_retail_repo
+        |- .gitignore
+        |- data_cleaning.py
+        |- data_extraction.py
+        |- database_utils.py
+        |- db_creds_aws.yaml
+        |- db_creds_local.yaml
+        |- README.md
+        |- s3_products.csv
 ## License Information

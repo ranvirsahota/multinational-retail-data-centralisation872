@@ -1,5 +1,6 @@
 import yaml
 import pandas as pd
+import requests
 from sqlalchemy import create_engine
 class DatabaseConnector:
     '''
@@ -30,6 +31,20 @@ class DatabaseConnector:
         with create_engine(f"postgresql://{creds['RDS_USER']}:{creds['RDS_PASSWORD']}@{creds['RDS_HOST']}:" +
                            f"{creds['RDS_PORT']}/{creds['RDS_DATABASE']}").connect() as conn:
             try:
-                print(df.to_sql(name=tbl_name, con=conn, index=True, if_exists='replace'))
+                result = df.to_sql(name=tbl_name, con=conn, index=True, if_exists='replace')
+                if (result.is_integer):
+                    print(f'DataFrame Uploaded, records affected: {result}')
+                else:
+                    print(f'DataFrame not uploaded, the error that occured: {result}')
+
             except Exception as e:
                 print(f'Error uploading DataFrame to database: {e}')
+    
+    def get_response(self, url:str):
+        response = requests.get(url)
+        if response.status_code == 200:
+            print(f'Success: {response}')
+            return response
+        else:
+            raise Exception(f'Error Occured: {response}')
+        
