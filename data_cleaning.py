@@ -143,11 +143,8 @@ class DataCleaning:
         DatabaseConnector().upload_to_db(orders_df, 'orders_table')
 
     def clean_sales_data(self):
-        try:
-            sales_df = DataExtractor().get_sales_data('https://data-handling-public.s3.eu-west-1.amazonaws.com/date_details.json')
-            sales_df = sales_df[sales_df['time_period'].isin(['Evening', 'Morning', 'Midday', 'Late_Hours'])]         
-            sales_df['date_uuid'] = sales_df['date_uuid'].astype('string')
-            sales_df[['time_period', 'day', 'month', 'year']] = sales_df[['time_period', 'day', 'month', 'year']].astype('category')
-            DatabaseConnector().upload_to_db(sales_df, 'dim_date_times')
-        except Exception as e:
-            print(e)
+        sales_df = DataExtractor().get_sales_data('https://data-handling-public.s3.eu-west-1.amazonaws.com/date_details.json')
+        sales_df = sales_df[sales_df['time_period'].isin(['Evening', 'Morning', 'Midday', 'Late_Hours'])]         
+        sales_df['date_uuid'] = sales_df['date_uuid'].astype('string')
+        sales_df[['time_period', 'day', 'month', 'year']] = sales_df[['time_period', 'day', 'month', 'year']].astype('category')
+        DatabaseConnector().upload_to_db(sales_df, 'dim_date_times')
