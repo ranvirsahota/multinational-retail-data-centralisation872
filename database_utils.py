@@ -18,6 +18,10 @@ class DatabaseConnector:
         Creates and reutrns an sqlalchemy engine
     '''
 
+    def __init__(self, file_path_creds) -> None:
+        self._file_path_creds = file_path_creds
+        self._engine = self._init_db_engine()
+
     def _print_error(self, statements):
         print('*' * 50)
         if (type(statements) is list):
@@ -27,15 +31,15 @@ class DatabaseConnector:
             print(statements)
         print('*' * 50)
 
-    def _connect_local_db(self):
-        return self._init_db_engine('./db_creds_local.yaml').connect()
+    # def _connect_local_db(self):
+    #     return self._init_db_engine('./db_creds_local.yaml').connect()
 
-    def _connect_aws_db(self):
-        return self._init_db_engine('./db_creds_aws.yaml').connect()
+    # def _connect_aws_db(self):
+    #     return self._init_db_engine('./db_creds_aws.yaml').connect()
 
-    def _read_db_creds(self, file_path):
+    def _read_db_creds(self):
         try:
-            with open(file_path, 'r') as file:
+            with open(self._file_path_creds, 'r') as file:
                 return yaml.safe_load(file)
         except OSError as err:
             self._print_error(f'OSError with open method: {err}')
@@ -49,8 +53,8 @@ class DatabaseConnector:
             print('Unexpected error has occurred during opening and parsing of YAML file, in read_db_creds():', err)
             raise
     
-    def _init_db_engine(self, file_path) -> sqlalchemy.engine:
-        creds = self._read_db_creds(file_path)
+    def _init_db_engine(self) -> sqlalchemy.engine:
+        creds = self._read_db_creds()
         try:
             user = creds['RDS_USER']
             passwd = creds['RDS_PASSWORD']
@@ -59,7 +63,7 @@ class DatabaseConnector:
             db_name = creds['RDS_DATABASE'] 
             return sqlalchemy.create_engine(f"postgresql://{user}:{passwd}@{host}:{port}/{db_name}")
         except KeyError as err:
-            self._print_error([f'File at this path {file_path} does not conform to credential standard, look at readme to know credential layout',
+            self._print_error([f'File at this path {self._file_path_creds} does not conform to credential standard, look at readme to know credential layout',
                               f'Missing Key is: {err.args[0]}'])
             raise
         except sqlalchemy.exc.OperationalError as err:
@@ -70,27 +74,29 @@ class DatabaseConnector:
             self._print_error(f'Unexpected error occurred during sqlalchemy.engine initiation and connection: {err}')
             raise
 
-    def execute_query(self, query:str):
-        with self._connect_aws_db() as engine_conn:
-            try:
-                return engine_conn.execute(sqlalchemy.text(query))
-            except sqlalchemy.exc.IntegrityError as err:
-                self._print_error(f'SQLAlchemy IntegrityError: {err}')
-                raise
-            except sqlalchemy.exc.ProgrammingError as err:
-                self._print_error([
-                    f'SQLAlchemyError raised at execute_query()',
-                    f'Error is sytax related or reference does not exist: {err}'])
-                raise
-            except Exception as err:
-                self._print_error(f'Unexpected error: {err}')
-                raise            
-        
-    
-    def upload_to_db(self, df:pd.DataFrame, tbl_name:str):
+    def execute_query(self, query:str) -> any:
         try:
-            with self._connect_local_db() as engine_conn:
-                result = df.to_sql(name=tbl_name, con=engine_conn, index=True, if_exists='replace')
+            with self._engine.begin() as engine_conn:
+                result = engine_conn.execute(sqlalchemy.TextClause(query))
+                print(result)
+                return result
+        except sqlalchemy.exc.IntegrityError as err:
+            self._print_error(f'SQLAlchemy IntegrityError: {err}')
+            raise
+        except sqlalchemy.exc.ProgrammingError as err:
+            self._print_error([
+                f'SQLAlchemyError raised at execute_query()',
+                f'Error is sytax related or reference does not exist: {err}'])
+            raise
+        except err:
+            self._print_error(f'Unexpected error: {err}')
+            raise            
+    
+    
+    def upload_to_db(self, df:pd.DataFrame, tbl_name:str, sql_types):
+        try:
+            with self._engine.connect() as engine_conn:
+                result = df.to_sql(name=tbl_name, con=engine_conn, index=True, if_exists='replace', dtype=sql_types)
                 if (result.is_integer):
                     print(f'DataFrame Uploaded, records affected: {result}')
                 else:
@@ -99,14 +105,3 @@ class DatabaseConnector:
         except Exception as err:
             self._print_error(f'Unexpected error : {err}')
             raise
-    
-    def get_response(self, url:str):
-        response = requests.get(url)
-        if response.status_code == 200:
-            print(f'Success: {response}')
-            return response
-        else:
-            response.raise_for_status()
-        
-    
-        

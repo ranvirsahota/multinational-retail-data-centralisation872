@@ -29,12 +29,20 @@ class DataExtractor:
     
     '''
 
-    def list_db_tables(self):
-        return pd.DataFrame(DatabaseConnector()
+    def _get_response(self, url:str):
+        response = requests.get(url)
+        if response.status_code == 200:
+            print(f'Success: {response}')
+            return response
+        else:
+            response.raise_for_status()
+    
+    def list_db_tables(self, db_connect):
+        return pd.DataFrame(self.db_connect
                             .execute_query('SELECT * FROM pg_catalog.pg_tables;'))
 
-    def read_rds_table(self,tbl_name:str):
-        return pd.DataFrame(DatabaseConnector()
+    def read_rds_table(self,tbl_name:str, db_connect):
+        return pd.DataFrame(self.db_connect
                             .execute_query(f'SELECT * FROM {tbl_name};'))
 
     def retrieve_pdf_data(self, pdf_url:str):
@@ -51,7 +59,7 @@ class DataExtractor:
     def retrieve_stores_data(self, endpoint_url:str, header:dict):
         total_stores = self.list_number_of_stores(endpoint_url = 'https://aqj7u5id95.execute-api.eu-west-1.amazonaws.com/prod/number_stores',
                                                 header = header)
-        df_final = pd.DataFrame()
+        final_stores_df = pd.DataFrame()
         for store_num in range(total_stores):
             response = requests.get(url = endpoint_url + f'{store_num}', headers = header).json()
             store_df = pd.DataFrame({
@@ -68,8 +76,8 @@ class DataExtractor:
                 'country_code': [response['country_code']],
                 'continent': [response['continent']]
             })
-            final_stores_df = pd.concat([df_final, store_df], ignore_index=True)
-        return df_final
+            final_stores_df = pd.concat([final_stores_df, store_df], ignore_index=True)
+        return final_stores_df
     
     def extract_from_s3(self, s3_url:str):
         path_parts = s3_url.replace("s3://","").split("/")
@@ -84,5 +92,6 @@ class DataExtractor:
             return pd.DataFrame(columns=column_names, data=csv_reader)
     
     def get_sales_data(self, url):
-        response = DatabaseConnector().get_response(url)
+        response = self._get_response(url)
         return pd.DataFrame(response.json())
+    
