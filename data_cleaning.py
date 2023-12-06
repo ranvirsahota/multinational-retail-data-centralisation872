@@ -19,8 +19,8 @@ class DataCleaning:
     '''
 
     def __init__(self, old_db_creds, new_db_creds) -> None:
-        self.old_db = DatabaseConnector(old_db_creds)
-        self.new_db = DatabaseConnector(new_db_creds)
+        self.old_db_conn = DatabaseConnector(old_db_creds)
+        self.new_db_conn= DatabaseConnector(new_db_creds)
 
     def _set_weight_class(self, weight:int):
         if weight < 2:
@@ -43,27 +43,18 @@ class DataCleaning:
 
     def clean_user_data(self):
         data_extrc = DataExtractor()
-        df = data_extrc.read_rds_table('legacy_users')
-        df.set_index('index', inplace=True)
+        users_df = data_extrc.read_rds_table('legacy_users')
+        users_df.set_index('index', inplace=True)
         # Chanage 'GGB' to 'GB', all rows with 'GGB' are in the UK
-        df['country_code'] = df['country_code'].replace('GGB', 'GB')
+        users_df['country_code'] = users_df['country_code'].replace('GGB', 'GB')
         # remove all rows with null values or errornous data, 
         # Can be find by find all country codes not two characters
-        df = df[df['country_code'].str.len() == 2]
-        df['date_of_birth'] = pd.to_datetime(df['date_of_birth'], format='mixed', errors='coerce')
-        df['join_date'] = pd.to_datetime(df['join_date'], format='mixed', errors='coerce')
-        df.first_name = df.first_name.astype('string')
-        df.last_name = df.last_name.astype('string')
-        df.date_of_birth = df.date_of_birth.astype('datetime64[ns]')
-        df.company = df.company.astype('string')
-        df.email_address = df.email_address.astype('string')
-        df.address = df.address.astype('string')
-        df.country = df.country.astype('category')
-        df.country_code = df.country_code.astype('category')
-        df.join_date = df.join_date.astype('datetime64[ns]')
-        df.user_uuid = df.user_uuid.astype('string')
-
-        DatabaseConnector().upload_to_db(df, 'dim_users_table', sql_types={
+        users_df = users_df[users_df['country_code'].str.len() == 2]
+        users_df['date_of_birth'] = pd.to_datetime(users_df['date_of_birth'], format='mixed', errors='coerce')
+        users_df['join_date'] = pd.to_datetime(users_df['join_date'], format='mixed', errors='coerce')
+        users_df.date_of_birth = users_df.date_of_birth.astype('datetime64[ns]')
+        users_df.join_date = users_df.join_date.astype('datetime64[ns]')
+        DatabaseConnector().upload_to_db(users_df, 'dim_users_table', sql_types={
             'first_name' : sqlalchemy.types.VARCHAR(255),
             'last_name' : sqlalchemy.types.VARCHAR(255),
             'date_of_birth' : sqlalchemy.types.DATE,
@@ -99,16 +90,9 @@ class DataCleaning:
         stores_df['opening_date'] = pd.to_datetime(stores_df['opening_date'], format='mixed', errors='raise')
         stores_df['continent'] = stores_df['continent'].str.removeprefix('ee')
         stores_df.at[0, ['address', 'longitude', 'locality', 'latitude']] = ['N/A', np.nan, 'N/A', np.nan]
-
-        stores_df.address = stores_df.address.astype('string')
         stores_df.longitude = stores_df.longitude.astype('float64')
-        stores_df.locality = stores_df.locality.astype('category')
-        stores_df.store_code = stores_df.store_code.astype('category')
         stores_df.staff_numbers = stores_df.staff_numbers.astype('int64')
-        stores_df.store_type = stores_df.store_type.astype('category')
         stores_df.latitude = stores_df.latitude.astype('float64')
-        stores_df.country_code = stores_df.country_code.astype('category')
-        stores_df.continent = stores_df.continent.astype('category')
 
         DatabaseConnector().upload_to_db(stores_df, 'dim_store_details', sql_types={
             'longitude' : sqlalchemy.types.FLOAT,
@@ -137,7 +121,6 @@ class DataCleaning:
 
         products_df.rename(columns={'removed' : 'still_available'}, inplace=True)
         products_df['still_available'] = products_df['still_available'].apply(lambda status: True if status == 'Still_avaliable' else False)
-        print(products_df.info())
         self.new_db.upload_to_db(products_df, 'dim_products', sql_types={
             'index' : sqlalchemy.types.INTEGER,
             'weight' : sqlalchemy.types.FLOAT,

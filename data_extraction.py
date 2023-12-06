@@ -38,12 +38,12 @@ class DataExtractor:
             response.raise_for_status()
     
     def list_db_tables(self, db_connect):
-        return pd.DataFrame(self.db_connect
+        return pd.DataFrame(db_connect
                             .execute_query('SELECT * FROM pg_catalog.pg_tables;'))
 
-    def read_rds_table(self,tbl_name:str, db_connect):
-        return pd.DataFrame(self.db_connect
-                            .execute_query(f'SELECT * FROM {tbl_name};'))
+    def read_rds_table(self, query, db_connect):
+        result = db_connect.execute_query(query)
+        return pd.DataFrame(result)
 
     def retrieve_pdf_data(self, pdf_url:str):
         cards_dataframe_list = tabula.read_pdf(input_path=pdf_url, pages='all')
