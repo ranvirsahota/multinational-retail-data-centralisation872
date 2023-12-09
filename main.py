@@ -12,4 +12,4 @@ if __name__ == "__main__":
     # data_clean.METHOD_NAME()
 
     data_queries = DataQueries(new_db_creds)
-    data_queries.store_count_by_locality()
+    data_queries.sales_onlive_vs_offline()
