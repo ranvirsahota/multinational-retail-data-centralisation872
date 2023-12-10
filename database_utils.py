@@ -93,12 +93,16 @@ class DatabaseConnector:
             raise            
     
     
-    def upload_to_db(self, df:pd.DataFrame, tbl_name:str, sql_types):
+    def upload_to_db(self, df:pd.DataFrame, tbl_name:str, sql_types:dict, primary_key:str= None):
         try:
             with self._engine.connect() as engine_conn:
+                self.execute_query(f'DROP TABLE IF EXISTS {tbl_name} CASCADE;')
                 result = df.to_sql(name=tbl_name, con=engine_conn, index=True, if_exists='replace', dtype=sql_types)
                 if (result.is_integer):
                     print(f'DataFrame Uploaded, records affected: {result}')
+                    if primary_key != None:
+                        self.execute_query(F'ALTER TABLE {tbl_name} ADD PRIMARY KEY ({primary_key})')
+                        print(f'PRIMARY KEY {primary_key} CREATED ON {tbl_name}')
                 else:
                     print(f'DataFrame not uploaded, the error that occured: {result}')
 
