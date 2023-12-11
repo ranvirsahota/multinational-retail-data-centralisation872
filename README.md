@@ -22,11 +22,19 @@ Reinforced knowledge of
 - web apis 
 
 ## Installation Instructions
-
+To run queries on a database download:
+    - data_extraction.py
+    - database_utils.py
+    - data_queries.ipynb
+To clean data from an old database to upload to a new one download (all files):
+    - data_cleaning.py
+    - data_extraction.py
+    - database_utils.py
+    - main.py
 ## Usage Instructions
-Replace 'METHOD_NAME' with chosen method. For DataCleaning methods only no arguments are required for method calls.
+Replace 'METHOD_NAME' with chosen method. For DataCleaning methods only no arguments are required for method calls. Then execute main.py, done in Linux:
 ```
-python -c 'import data_cleaning; data_cleaning.METHOD_NAME()'
+python main.py
 ```
 ## File Structure Of The Project
     multinational_retail_repo
