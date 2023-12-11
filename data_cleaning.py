@@ -5,17 +5,48 @@ import numpy as np
 import sqlalchemy, re
 class DataCleaning:
     '''
+     A class for cleaning and transforming data before uploading it to a new database.
+
     Parameters:
     ----------
-
+    old_db_creds : str
+        The file path to the YAML file containing credentials for the old database.
+    new_db_creds : str
+        The file path to the YAML file containing credentials for the new database.
 
     Attributes:
     ----------
-
+    old_db : DatabaseConnector
+        An instance of the DatabaseConnector for the old database.
+    new_db : DatabaseConnector
+        An instance of the DatabaseConnector for the new database.
 
     Methods:
     -------
-    
+    _set_weight_class(weight: int) -> str
+        Set weight class based on the provided weight.
+
+    _convert_product_weights(product_weight: str) -> float
+        Convert product weights to a consistent numerical format.
+
+    clean_user_data()
+        Clean and upload user data to the new database.
+
+    clean_card_data()
+        Clean and upload card data to the new database.
+
+    clean_store_data()
+        Clean and upload store data to the new database.
+
+    clean_products_data()
+        Clean and upload product data to the new database.
+
+    clean_sales_data()
+        Clean and upload sales data to the new database.
+
+    clean_orders_data()
+        Clean and upload orders data to the new database.
+
     '''
 
     def __init__(self, old_db_creds, new_db_creds) -> None:
@@ -23,6 +54,19 @@ class DataCleaning:
         self.new_db= DatabaseConnector(new_db_creds)
 
     def _set_weight_class(self, weight:int):
+        '''
+        Set weight class based on the provided weight.
+
+        Parameters:
+        ----------
+        weight : int
+            The weight to determine the class.
+
+        Returns:
+        -------
+        str
+            The weight class.
+        '''
         if weight < 2:
             return 'Light'
         elif weight >= 2 and weight < 40:
@@ -33,6 +77,19 @@ class DataCleaning:
             return 'Truck_Required'
     
     def _convert_product_weights(self, product_weight:str) -> float:
+        '''
+        Convert product weights to a consistent numerical format.
+
+        Parameters:
+        ----------
+        product_weight : str
+            The product weight to be converted.
+
+        Returns:
+        -------
+        float
+            The converted product weight as a numerical value.
+        '''
         weight_num_match = re.search(r'\d+(\.\d+)*', product_weight)
         if not weight_num_match:
             return np.nan
@@ -42,6 +99,9 @@ class DataCleaning:
         return weight_num
 
     def clean_user_data(self):
+        '''
+        Clean and upload user data to the new database.
+        '''
         data_extrc = DataExtractor()
         users_df = data_extrc.read_rds_table('legacy_users')
         users_df.set_index('index', inplace=True)
@@ -69,15 +129,15 @@ class DataCleaning:
         )
 
     def clean_card_data(self):
+        '''
+        Clean and upload card data to the new database.
+        '''
         cards_df = DataExtractor().retrieve_pdf_data('https://data-handling-public.s3.eu-west-1.amazonaws.com/card_details.pdf')
         cards_df['expiry_date'].replace('NULL', pd.NaT, inplace = True)
         cards_df['date_payment_confirmed'].replace('NULL', pd.NaT, inplace = True)
         cards_df.dropna(how='all', inplace=True)
         cards_df['card_number'] = cards_df['card_number'].astype('string').str.replace('?','')
         cards_df = cards_df[cards_df['card_number'].str.isnumeric()]
-        print(cards_df [~cards_df['date_payment_confirmed'].astype('string').str.contains('-')])
-        #cards_df['expiry_date'] = pd.to_datetime(cards_df['expiry_date'], format='%m/%y', errors='coerce') + pd.offsets.MonthEnd(0)
-        #cards_df['date_payment_confirmed'] = pd.to_datetime(cards_df['date_payment_confirmed'], format='mixed', errors='coerce')
         self.new_db.upload_to_db(
             sql_types = {
                 'card_number' : sqlalchemy.types.VARCHAR(cards_df['card_number'].astype('string').str.len().max()),
@@ -90,6 +150,9 @@ class DataCleaning:
         )
 
     def clean_store_data(self):
+        '''
+        Clean and upload store data to the new database.
+        '''
         stores_df = DataExtractor().retrieve_stores_data(endpoint_url = 'https://aqj7u5id95.execute-api.eu-west-1.amazonaws.com/prod/store_details/',
                                      header = {'x-api-key' : 'yFBQbwXe9J3sd6zWVAMrK6lcxxr0q1lr2PT6DDMX'})
         stores_df.set_index('index', inplace=True)
@@ -122,6 +185,9 @@ class DataCleaning:
         )
 
     def clean_products_data(self):
+        '''
+        Clean and upload product data to the new database.
+        '''
         products_df = DataExtractor().extract_from_s3('s3://data-handling-public/products.csv')
         products_df['weight'] = products_df['weight'].apply(self._convert_product_weights)
         products_df.set_index('index', inplace=True)
@@ -159,9 +225,11 @@ class DataCleaning:
         print(self.new_db.execute_query(query))
         
     def clean_sales_data(self):
+        '''
+        Clean and upload sales data to the new database.
+        '''
         sales_df = DataExtractor().get_sales_data('https://data-handling-public.s3.eu-west-1.amazonaws.com/date_details.json')
         sales_df = sales_df[sales_df['time_period'].isin(['Evening', 'Morning', 'Midday', 'Late_Hours'])]
-        tbl_name = 'dim_date_times'
         self.new_db.upload_to_db(
             sql_types = {
                 'date_uuid' : sqlalchemy.types.UUID,
@@ -177,6 +245,9 @@ class DataCleaning:
         )
     
     def clean_orders_data(self):
+        '''
+        Clean and upload orders data to the new database.
+        '''
         query = 'SELECT * FROM orders_table;'
         orders_df = DataExtractor().read_rds_table(query, self.old_db)
         orders_df.set_index('index', inplace=True)

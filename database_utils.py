@@ -6,16 +6,27 @@ class DatabaseConnector:
     '''
     Parameters:
     ----------
-
+    file_path_creds: str
+        The file path to the file containing credentials to access a database in string format
     Attributes:
     ----------
+    _file_path_creds: str
+        Applied file path as an attribute for ease of access arround classes and to provide information in error handling
+    _engine
+        instance of SQLAlchemy engine which provides access to database to r/w queries
 
     Methods:
     -------
+    __print_error(statements)
+        to provide a consistent approach in displaying error messages
     read_db_creds()
         Will read any any YAML file and return the result as directory
     init_db_engine()
         Creates and reutrns an sqlalchemy engine
+    execute_query(query:str)
+        Executes any query and returns the results
+    upload_to_db(df:pd.DataFrame, tbl_name:str, sql_types:dict, primary_key:str= None)
+        Uploads dataframe to database
     '''
 
     def __init__(self, file_path_creds) -> None:
@@ -23,6 +34,14 @@ class DatabaseConnector:
         self._engine = self._init_db_engine()
 
     def _print_error(self, statements):
+        """
+        Print error messages in a concise and consistent format.
+
+        Parameters:
+        ----------
+        statements : str or list
+            A single error statement or a list of error statements.
+        """
         print('*' * 50)
         if (type(statements) is list):
             for statment in statements:
@@ -31,13 +50,15 @@ class DatabaseConnector:
             print(statements)
         print('*' * 50)
 
-    # def _connect_local_db(self):
-    #     return self._init_db_engine('./db_creds_local.yaml').connect()
+    def _read_db_creds(self) -> any:
+        '''
+        Read database credentials from a YAML file.
 
-    # def _connect_aws_db(self):
-    #     return self._init_db_engine('./db_creds_aws.yaml').connect()
-
-    def _read_db_creds(self):
+        Returns:
+        -------
+        dict
+            A dictionary containing database credentials.
+        '''
         try:
             with open(self._file_path_creds, 'r') as file:
                 return yaml.safe_load(file)
@@ -54,6 +75,14 @@ class DatabaseConnector:
             raise
     
     def _init_db_engine(self) -> sqlalchemy.engine:
+        '''
+        Initialize and return an SQLAlchemy engine for connecting to the database.
+
+        Returns:
+        -------
+        sqlalchemy.engine
+            An SQLAlchemy engine instance.
+        '''
         creds = self._read_db_creds()
         try:
             user = creds['RDS_USER']
@@ -75,6 +104,19 @@ class DatabaseConnector:
             raise
 
     def execute_query(self, query:str) -> any:
+        '''
+        Execute an SQL query on the connected database.
+
+        Parameters:
+        ----------
+        query : str
+            The SQL query to be executed.
+
+        Returns:
+        -------
+        ResultProxy
+            The result proxy object containing the results of the query. 
+        '''
         try:
             with self._engine.begin() as engine_conn:
                 result = engine_conn.execute(sqlalchemy.TextClause(query))
@@ -94,6 +136,25 @@ class DatabaseConnector:
     
     
     def upload_to_db(self, df:pd.DataFrame, tbl_name:str, sql_types:dict, primary_key:str= None):
+        '''
+        Upload a DataFrame to the database.
+
+        Parameters:
+        ----------
+        df : pd.DataFrame
+            The DataFrame to be uploaded.
+        tbl_name : str
+            The name of the table in the database.
+        sql_types : dict
+            A dictionary specifying the data types for each column in the DataFrame.
+        primary_key : str, optional
+            The primary key column name or the table.
+
+        Raises:
+        -------
+        Exception
+            If an unexpected error occurs during the upload process.
+        '''
         try:
             with self._engine.connect() as engine_conn:
                 self.execute_query(f'DROP TABLE IF EXISTS {tbl_name} CASCADE;')

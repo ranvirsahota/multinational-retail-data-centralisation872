@@ -8,4 +8,4 @@ if __name__ == "__main__":
     new_db_creds = './db_creds_local.yaml'
 
     data_clean = DataCleaning(old_db_creds, new_db_creds)
-    data_clean.clean_orders_data()
+    data_clean.clean_sales_data()
